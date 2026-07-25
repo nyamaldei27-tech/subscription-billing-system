@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Billing System Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.5; }
+        .card { border: 1px solid #ccc; padding: 15px; border-radius: 6px; margin-bottom: 15px; background: #f9f9f9; }
+        input, select { padding: 6px; margin-right: 10px; width: 160px; }
+        button { padding: 6px 12px; cursor: pointer; margin-right: 5px; }
+        pre { background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        label { margin-right: 10px; font-weight: bold; }
+        .row { margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+<h2>Billing & Customer Management System</h2>
+
+<!-- 1. CREATE CUSTOMER SECTION -->
+<div class="card">
+    <h3>Create Customer</h3>
+    <label>Name: <input type="text" id="custName" placeholder="John Doe"></label>
+    <label>Email: <input type="email" id="custEmail" placeholder="john@example.com"></label>
+    <button onclick="createCustomer()">Create Customer</button>
+</div>
+
+<!-- 2. CREATE PLAN SECTION -->
+<div class="card">
+    <h3>Create Plan</h3>
+    <div class="row">
+        <label>Name: <input type="text" id="planName" placeholder="Pro Plan"></label>
+        <label>Price (Cents): <input type="number" id="planPrice" placeholder="1999"></label>
+    </div>
+    <div class="row">
+        <label for="planCycle">Cycle:</label>
+        <select id="planCycle">
+            <option value="MONTHLY">MONTHLY</option>
+            <option value="YEARLY">YEARLY</option>
+            <option value="WEEKLY">WEEKLY</option>
+        </select>
+        <button onclick="createPlan()">Create Plan</button>
+    </div>
+</div>
+
+<!-- 3. SUBSCRIPTIONS SECTION -->
+<div class="card">
+    <h3>Create Subscription</h3>
+    <label for="subCustomerId">Customer ID:</label>
+    <input type="number" id="subCustomerId" placeholder="1" min="1">
+
+    <label for="subPlanId">Plan ID:</label>
+    <input type="number" id="subPlanId" placeholder="1" min="1">
+
+    <button onclick="createSubscription()">Submit Subscription</button>
+</div>
+
+<!-- 4. CUSTOMER MANAGEMENT -->
+<div class="card">
+    <h3>Customer Management</h3>
+    <div class="row">
+        <button onclick="fetchAllCustomers()">Fetch All Customers</button>
+    </div>
+    <div class="row">
+        <label for="customerId">Customer ID:</label>
+        <input type="number" id="customerId" placeholder="1" min="1">
+        <button onclick="fetchCustomerInfo()">Fetch Customer Details</button>
+    </div>
+</div>
+
+<!-- 5. PLANS SECTION -->
+<div class="card">
+    <h3>Plans Management</h3>
+    <button onclick="fetchPlans()">Fetch All Available Plans</button>
+</div>
+
+<!-- 6. INVOICES SECTION -->
+<div class="card">
+    <h3>Invoices Management</h3>
+    <div class="row">
+        <button onclick="fetchAllInvoices()">Fetch All Invoices</button>
+    </div>
+    <div class="row">
+        <label for="invoiceCustomerId">Customer ID:</label>
+        <input type="number" id="invoiceCustomerId" placeholder="1" min="1">
+        <button onclick="fetchInvoicesByCustomer()">Fetch Invoices</button>
+    </div>
+</div>
+
+<hr>
+
+<!-- SERVER RESPONSE DISPLAY -->
+<h3>Response from Server:</h3>
+<pre id="output">Click any action above to interact with your Spring Boot backend...</pre>
+
+<script>
+    const outputElement = document.getElementById('output');
+
+    // Helper functions for logging output
+    function displayResponse(title, data) {
+        outputElement.textContent = title + "\n" + JSON.stringify(data, null, 2);
+    }
+
+    function displayError(title, error) {
+        outputElement.textContent = title + " Error:\n" + (typeof error === 'object' ? JSON.stringify(error, null, 2) : error);
+    }
+
+    // Dynamic response parser (handles both JSON and plain text errors safely)
+    async function handleResponse(response) {
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+            return await response.json();
+        } else {
+            return await response.text();
+        }
+    }
+
+    // --- 1. CREATE CUSTOMER ---
+    async function createCustomer() {
+        const nameInput = document.getElementById('custName');
+        const emailInput = document.getElementById('custEmail');
+
+        try {
+            const response = await fetch('http://localhost:8080/api/customers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: nameInput.value, email: emailInput.value })
+            });
+
+            const data = await handleResponse(response);
+            if (!response.ok) {
+                displayError("Customer Creation", data);
+            } else {
+                displayResponse("Customer Created Successfully:", data);
+                nameInput.value = "";
+                emailInput.value = "";
+            }
+        } catch (error) {
+            displayError("Customer Creation", error.message);
+        }
+    }
+
+    // --- 2. CREATE PLAN ---
+    async function createPlan() {
+        const nameInput = document.getElementById('planName');
+        const priceInput = document.getElementById('planPrice');
+        const cycleSelect = document.getElementById('planCycle');
+
+        try {
+            const response = await fetch('http://localhost:8080/api/plans', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: nameInput.value,
+                    priceCents: parseInt(priceInput.value),
+                    billingCycle: cycleSelect.value
+                })
+            });
+
+            const data = await handleResponse(response);
+            if (!response.ok) {
+                displayError("Plan Creation", data);
+            } else {
+                displayResponse("Plan Created Successfully:", data);
+                nameInput.value = "";
+                priceInput.value = "";
+                cycleSelect.selectedIndex = 0;
+            }
+        } catch (error) {
+            displayError("Plan Creation", error.message);
+        }
+    }
+
+    // --- 3. CREATE SUBSCRIPTION ---
+    async function createSubscription() {
+        const customerIdInput = document.getElementById('subCustomerId');
+        const planIdInput = document.getElementById('subPlanId');
+
+        if (!customerIdInput.value || !planIdInput.value) {
+            alert("Please enter both Customer ID and Plan ID");
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:8080/api/billing/subscriptions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    customerId: parseInt(customerIdInput.value),
+                    planId: parseInt(planIdInput.value)
+                })
+            });
+
+            const data = await handleResponse(response);
+            if (!response.ok) {
+                displayError("Subscription Creation", data);
+            } else {
+                displayResponse("Subscription Created Successfully:", data);
+                customerIdInput.value = "";
+                planIdInput.value = "";
+            }
+        } catch (error) {
+            displayError("Subscription Creation", error.message);
+        }
+    }
+
+    // --- 4. CUSTOMER MANAGEMENT ---
+    async function fetchAllCustomers() {
+        try {
+            const response = await fetch('http://localhost:8080/api/customers');
+            const data = await handleResponse(response);
+            if (!response.ok) {
+                displayError("Fetch All Customers", data);
+            } else {
+                displayResponse("All Customers:", data);
+            }
+        } catch (error) {
+            displayError("Fetch All Customers", error.message);
+        }
+    }
+
+    async function fetchCustomerInfo() {
+        const customerIdInput = document.getElementById('customerId');
+        const customerId = customerIdInput.value;
+
+        if (!customerId) {
+            alert("Please enter a Customer ID");
+            return;
+        }
+
+        try {
+            const response = await fetch("http://localhost:8080/api/customers/" + customerId);
+            const data = await handleResponse(response);
+            if (!response.ok) {
+                displayError("Customer Fetch", data);
+            } else {
+                displayResponse("Customer Details (ID: " + customerId + "):", data);
+            }
+        } catch (error) {
+            displayError("Customer Fetch", error.message);
+        }
+    }
+
+    // --- 5. PLANS MANAGEMENT ---
+    async function fetchPlans() {
+        try {
+            const response = await fetch('http://localhost:8080/api/plans');
+            const data = await handleResponse(response);
+            if (!response.ok) {
+                displayError("Plans Fetching", data);
+            } else {
+                displayResponse("Available Plans:", data);
+            }
+        } catch (error) {
+            displayError("Plans Fetching", error.message);
+        }
+    }
+
+    // --- 6. INVOICES MANAGEMENT ---
+    async function fetchAllInvoices() {
+        try {
+            const response = await fetch('http://localhost:8080/api/invoices');
+            const data = await handleResponse(response);
+            if (!response.ok) {
+                displayError("Fetch All Invoices", data);
+            } else {
+                displayResponse("All Invoices:", data);
+            }
+        } catch (error) {
+            displayError("Fetch All Invoices", error.message);
+        }
+    }
+
+    async function fetchInvoicesByCustomer() {
+        const customerIdInput = document.getElementById('invoiceCustomerId');
+        const customerId = customerIdInput.value;
+
+        if (!customerId) {
+            alert("Please enter a Customer ID");
+            return;
+        }
+
+        try {
+            const response = await fetch("http://localhost:8080/api/invoices/customer/" + customerId);
+            const data = await handleResponse(response);
+            if (!response.ok) {
+                displayError("Customer Invoices Fetch", data);
+            } else {
+                displayResponse("Invoices for Customer ID " + customerId + ":", data);
+            }
+        } catch (error) {
+            displayError("Customer Invoices Fetch", error.message);
+        }
+    }
+</script>
+
+</body>
+</html>
