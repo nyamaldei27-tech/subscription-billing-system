@@ -28,11 +28,9 @@ public class CustomerAndPlanController {
     // --- Customer Routes ---
 
     @PostMapping("/customers")
-    public ResponseEntity<Customer> createCustomer(@RequestBody Customer customer) {
-        if (customer.getName() == null || customer.getEmail() == null) {
-            return ResponseEntity.badRequest().build();
-        }
-        return ResponseEntity.ok(customerRepository.save(customer));
+    public ResponseEntity<Customer> createCustomer(@Valid @RequestBody Customer customer) {
+        Customer savedCustomer = customerRepository.save(customer);
+        return ResponseEntity.ok(savedCustomer);
     }
 
     @GetMapping("/customers/{id}")
