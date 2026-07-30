@@ -20,4 +20,9 @@ public class ErrorResponse {
     public String getError() { return error; }
     public String getMessage() { return message; }
     public LocalDateTime getTimestamp() { return timestamp; }
+
+    public void setStatus(int status) { this.status = status; }
+    public void setError(String error) { this.error = error; }
+    public void setMessage(String message) { this.message = message; }
+    public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
 }

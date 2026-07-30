@@ -12,8 +12,6 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import static org.springframework.data.jpa.domain.AbstractPersistable_.id;
-
 @Service
 @Component
 public class BillingService {
@@ -100,33 +98,22 @@ public class BillingService {
     }
 
     @Transactional
-    public Plan createPlan(String name, Integer priceCents, String billingCycle) {
-        // Business rule: Plan name must be unique.
-        if (planRepository.existsByName(name)) {
+    public Plan createPlan(Plan plan) {
+        if (planRepository.existsByName(plan.getName())) {
             throw new PlanNameAlreadyExistsException("A plan with this name already exists.");
         }
-        Plan newPlan = new Plan();
-        newPlan.setName(name);
-        newPlan.setPriceCents(priceCents);
-        newPlan.setBillingCycle(billingCycle);
-        return planRepository.save(newPlan); // Save the completed object
+        return planRepository.save(plan);
     }
 
 
     @Transactional
-    public Customer createCustomer(String name, String email) {
-        // Use the repository to check if the email already exists.
-        if (customerRepository.existsByEmail(email)) {
-            // If it exists, throw a custom exception.
+    public Customer createCustomer(Customer customer) {
+        if (customerRepository.existsByEmail(customer.getEmail())) {
             throw new EmailAlreadyExistsException("A customer with this email already exists.");
         }
-
-        // If the validation passes, proceed with creation:
-        Customer newCustomer = new Customer();
-        newCustomer.setName(name);
-        newCustomer.setEmail(email);
-        return customerRepository.save(newCustomer);
+        return customerRepository.save(customer);
     }
+
 
     public List<Customer> getAllCustomers() {
         return customerRepository.findAll();

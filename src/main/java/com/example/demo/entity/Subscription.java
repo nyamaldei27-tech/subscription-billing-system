@@ -1,6 +1,8 @@
 package com.example.demo.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 
 @Entity
@@ -10,17 +12,21 @@ public class Subscription {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotNull(message = "Customer association is required")
     @ManyToOne
     @JoinColumn(name = "customer_id",nullable = false)
     private Customer customer;
 
+    @NotNull(message = "Plan association is required")
     @ManyToOne
     @JoinColumn(name = "plan_id",nullable = false)
     private Plan plan;
 
+    @NotBlank(message = "Subscription status is required")
     @Column(nullable = false)
     private String status; //e.g active,past_due
 
+    @NotNull(message = "Current period end date is required")
     @Column(name = "current_period_end", nullable = false)
     private LocalDateTime currentPeriodEnd;
 

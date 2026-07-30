@@ -5,6 +5,7 @@ import com.example.demo.entity.Plan;
 import com.example.demo.repository.CustomerRepository;
 import com.example.demo.repository.PlanRepository;
 import com.example.demo.service.BillingService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,7 +30,7 @@ public class CustomerAndPlanController {
 
     @PostMapping("/customers")
     public ResponseEntity<Customer> createCustomer(@Valid @RequestBody Customer customer) {
-        Customer savedCustomer = customerRepository.save(customer);
+        Customer savedCustomer = billingService.createCustomer(customer);
         return ResponseEntity.ok(savedCustomer);
     }
 
@@ -41,11 +42,9 @@ public class CustomerAndPlanController {
     // --- Plan Routes ---
 
     @PostMapping("/plans")
-    public ResponseEntity<Plan> createPlan(@RequestBody Plan plan) {
-        if ((plan.getName()==null || plan.getPriceCents()== null || plan.getBillingCycle()==null)) {
-            return ResponseEntity.badRequest().build();
-        }
-        return ResponseEntity.ok(planRepository.save(plan));
+    public ResponseEntity<Plan> createPlan(@Valid @RequestBody Plan plan) {
+        Plan savedPlan = billingService.createPlan(plan);
+        return ResponseEntity.ok(savedPlan);
     }
 
     @GetMapping("/plans")
