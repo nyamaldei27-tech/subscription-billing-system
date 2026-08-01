@@ -7,13 +7,11 @@ import com.example.demo.repository.*;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
-@Component
 public class BillingService {
 
 
@@ -53,8 +51,6 @@ public class BillingService {
         subscription.setCustomer(customer);
         subscription.setPlan(plan);
         subscription.setStatus("ACTIVE");
-
-        // Default billing period ends 30 days from now
         subscription.setCurrentPeriodEnd(LocalDateTime.now().plusDays(30));
         Subscription savedSubscription = subscriptionRepository.save(subscription);
 
@@ -114,33 +110,65 @@ public class BillingService {
         return customerRepository.save(customer);
     }
 
+    // --- Optimized Read Operations ---
 
+    @Transactional(readOnly = true)
     public List<Customer> getAllCustomers() {
         return customerRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
     public Customer getCustomerById(Long id) {
         return customerRepository.findById(id)
                 .orElseThrow(()-> new IllegalArgumentException("Customer not found with ID:"+id));
     }
 
+    @Transactional(readOnly = true)
     public List<Plan> getAllPlans() {
         return planRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
+    public Plan getPlanById(Long id) {
+        return planRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Plan not found with ID: " + id));
+    }
+
+    @Transactional(readOnly = true)
     public List<Subscription> getAllSubscriptions() {
         return subscriptionRepository.findAll();
     }
+
+    @Transactional(readOnly = true)
     public List<Invoice> getAllInvoices() {
         return invoiceRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
     public List<PaymentAttempt> getAllPaymentAttempts() {
         return paymentAttemptRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
     public List<Invoice> getInvoicesByCustomerId(Long customerId) {
         return invoiceRepository.findBySubscriptionCustomerId(customerId);
+    }
+
+    @Transactional(readOnly = true)
+    public Subscription getSubscriptionById(Long id) {
+        return subscriptionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Subscription not found with ID: " + id));
+    }
+
+    @Transactional(readOnly = true)
+    public Invoice getInvoiceById(Long id) {
+        return invoiceRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Invoice not found with ID: " + id));
+    }
+
+    @Transactional(readOnly = true)
+    public List<PaymentAttempt> getPaymentAttemptsByCustomerId(Long customerId) {
+        return paymentAttemptRepository.findByInvoiceSubscriptionCustomerId(customerId);
     }
 
     /**
@@ -169,7 +197,7 @@ public class BillingService {
             invoiceRepository.save(invoice);
 
             // 3. Extend current subscription period by 30 days
-            subscription.setCurrentPeriodEnd(now.plusDays(30));
+            subscription.setCurrentPeriodEnd(subscription.getCurrentPeriodEnd().plusDays(30));
             subscriptionRepository.save(subscription);
         }
     }

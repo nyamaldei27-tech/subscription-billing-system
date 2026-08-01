@@ -1,6 +1,7 @@
 package com.example.demo.controller;
 
 import com.example.demo.entity.Invoice;
+import com.example.demo.entity.PaymentAttempt;
 import com.example.demo.entity.Subscription;
 import com.example.demo.service.BillingService;
 import org.springframework.validation.annotation.Validated;
@@ -36,7 +37,7 @@ public class BillingController {
 
         // Keep a simple fallback check in case the keys themselves are entirely missing from the JSON
         if (customerId == null || planId == null) {
-            return ResponseEntity.badRequest().body("Missing customerId or planId");
+            return ResponseEntity.badRequest().body("Both customerId and planId must be provided in the request body.");
         }
 
         try {
@@ -47,6 +48,15 @@ public class BillingController {
         }
     }
 
+    @GetMapping("/subscriptions")
+    public ResponseEntity<List<Subscription>> getAllSubscriptions() {
+        return ResponseEntity.ok(billingService.getAllSubscriptions());
+    }
+
+    @GetMapping("/subscriptions/{id}")
+    public ResponseEntity<Subscription> getSubscriptionById(@PathVariable Long id) {
+        return ResponseEntity.ok(billingService.getSubscriptionById(id));
+    }
 
 
     /**
@@ -87,5 +97,41 @@ public class BillingController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+
+    @GetMapping("/invoices/{id}")
+    public ResponseEntity<Invoice> getInvoiceById(@PathVariable Long id) {
+        return ResponseEntity.ok(billingService.getInvoiceById(id));
+    }
+
+    @PostMapping("/payments/process")
+    public ResponseEntity<Invoice> processPayment(@RequestBody Map<String, Object> payload) {
+        // 1. Pull the raw objects out of the map first (without converting them yet)
+        Object rawInvoiceId = payload.get("invoiceId");
+        Object rawStatus = payload.get("status");
+
+        // 2. Safely check if either of them are missing
+        if (rawInvoiceId == null || rawStatus == null) {
+            throw new IllegalArgumentException("Both invoiceId and status must be provided in the request body.");
+        }
+
+        // 3. Now that we are 100% sure they exist, it is safe to convert them!
+        Long invoiceId = Long.valueOf(rawInvoiceId.toString());
+        String status = rawStatus.toString();
+
+        // 4. Pass them to your service layer
+        Invoice updatedInvoice = billingService.processPayment(invoiceId, status);
+        return ResponseEntity.ok(updatedInvoice);
+    }
+
+    @GetMapping("/payment-attempts")
+    public ResponseEntity<List<PaymentAttempt>> getAllPaymentAttempts() {
+        return ResponseEntity.ok(billingService.getAllPaymentAttempts());
+    }
+
+    @GetMapping("/customers/{customerId}/payment-attempts")
+    public ResponseEntity<List<PaymentAttempt>> getPaymentAttemptsByCustomerId(@PathVariable Long customerId) {
+        List<PaymentAttempt> attempts = billingService.getPaymentAttemptsByCustomerId(customerId);
+        return ResponseEntity.ok(attempts);
     }
 }

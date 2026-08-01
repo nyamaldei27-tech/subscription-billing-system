@@ -2,8 +2,6 @@ package com.example.demo.controller;
 
 import com.example.demo.entity.Customer;
 import com.example.demo.entity.Plan;
-import com.example.demo.repository.CustomerRepository;
-import com.example.demo.repository.PlanRepository;
 import com.example.demo.service.BillingService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -16,13 +14,10 @@ import java.util.List;
 @RequestMapping("/api")
 public class CustomerAndPlanController {
 
-    private final CustomerRepository customerRepository;
-    private final PlanRepository planRepository;
+
     private final BillingService billingService;
 
-    public CustomerAndPlanController(CustomerRepository customerRepository, PlanRepository planRepository, BillingService billingService) {
-        this.customerRepository = customerRepository;
-        this.planRepository = planRepository;
+    public CustomerAndPlanController(BillingService billingService) {
         this.billingService = billingService;
     }
 
@@ -39,6 +34,11 @@ public class CustomerAndPlanController {
         return ResponseEntity.ok(billingService.getCustomerById(id));
     }
 
+    @GetMapping("/customers")
+    public ResponseEntity<List<Customer>> getAllCustomers() {
+        return ResponseEntity.ok(billingService.getAllCustomers());
+    }
+
     // --- Plan Routes ---
 
     @PostMapping("/plans")
@@ -47,8 +47,16 @@ public class CustomerAndPlanController {
         return ResponseEntity.ok(savedPlan);
     }
 
+    @GetMapping("/plans/{id}")
+    public ResponseEntity<Plan> getPlanById(@PathVariable Long id) {
+        Plan plan = billingService.getPlanById(id);
+        return ResponseEntity.ok(plan);
+    }
+
     @GetMapping("/plans")
-    public List<Plan> getAllPlans() {
-        return planRepository.findAll();
+    public ResponseEntity< List<Plan>> getAllPlans() {
+        List<Plan> Plans = billingService.getAllPlans();
+
+        return ResponseEntity.ok(Plans);
     }
 }

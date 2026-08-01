@@ -1,0 +1,59 @@
+graph TD
+%% Actors and Triggers
+    CustomerApp[Customer App]
+    AdminPanel[Operator / Admin Panel]
+    CronJob[System Internal Cron Job]
+
+%% Layer 1: Controllers
+    PlanController[PlanController]
+    CustomerController[CustomerController]
+    SubscriptionController[SubscriptionController]
+    PaymentController[PaymentController]
+
+%% Layer 2: Services
+    PlanService[PlanService]
+    CustomerService[CustomerService]
+    SubscriptionService[SubscriptionService]
+    PaymentService[PaymentService]
+    BillingSchedulerService[BillingSchedulerService]
+
+%% Layer 3: Repositories
+    PlanRepository[PlanRepository]
+    CustomerRepository[CustomerRepository]
+    SubscriptionRepository[SubscriptionRepository]
+    InvoiceRepository[InvoiceRepository]
+    PaymentAttemptRepository[PaymentAttemptRepository]
+
+%% Layer 4: Database
+    PostgreSQL[(PostgreSQL Database)]
+
+%% API Endpoints Flow
+    AdminPanel --> PlanController
+    CustomerApp --> CustomerController
+    CustomerApp --> SubscriptionController
+    CustomerApp --> PaymentController
+    CronJob --> BillingSchedulerService
+
+%% Controller to Service Routing
+    PlanController --> PlanService
+    CustomerController --> CustomerService
+    SubscriptionController --> SubscriptionService
+    PaymentController --> PaymentService
+
+%% Service Tasks and Cross-Calls
+    BillingSchedulerService --> SubscriptionService
+    SubscriptionService --> InvoiceRepository
+
+%% Service to Repository Mappings
+    PlanService --> PlanRepository
+    CustomerService --> CustomerRepository
+    SubscriptionService --> SubscriptionRepository
+    PaymentService --> PaymentAttemptRepository
+    PaymentService --> InvoiceRepository
+
+%% Repository Persistence to DB
+    PlanRepository --> PostgreSQL
+    CustomerRepository --> PostgreSQL
+    SubscriptionRepository --> PostgreSQL
+    InvoiceRepository --> PostgreSQL
+    PaymentAttemptRepository --> PostgreSQL
