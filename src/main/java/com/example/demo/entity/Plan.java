@@ -3,6 +3,7 @@ package com.example.demo.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.PositiveOrZero;
 
 @Entity
@@ -22,6 +23,7 @@ public class Plan {
     private  Integer priceCents;
 
     @NotBlank(message = "Billing cycle is required")
+    @Pattern(regexp = "^(WEEKLY|MONTHLY|YEARLY)$", message = "Billing cycle must be either WEEKLY,MONTHLY or YEARLY")
     @Column(name = "billing_cycle", nullable = false)
     private String billingCycle;
 

@@ -21,18 +21,34 @@
 <div class="card">
     <h3>Customer Management</h3>
     <div class="row">
-        <label for="customerName">Customer Name</label>
-        <input type="text" id="customerName" placeholder="Name">
+        <div class="col">
+       <!--First Name: Required -->
+        <label for="firstName">First Name*:</label>
+        <input type="text" id="firstName" placeholder="First Name" required
+               oninput="if(this.value) this.value = this.value.charAt(0).toUpperCase() + this.value.slice(1);">
 
+        <!-- Middle Name: Optional -->
+        <label for="middleName">Middle Name:</label>
+        <input type="text" id="middleName" placeholder="Middle Name (Optional)"
+               oninput="if(this.value) this.value = this.value.charAt(0).toUpperCase() + this.value.slice(1);">
+
+        <!-- Last Name: Required -->
+        <label for="lastName">Last Name*:</label>
+        <input type="text" id="lastName" placeholder="Last Name" required
+               oninput="if(this.value) this.value = this.value.charAt(0).toUpperCase() + this.value.slice(1);">
+        </div><br>
+        <div class="col">
         <label for="customerEmail">Customer Email</label>
-        <input type="email" id="customerEmail" placeholder="Email">
+        <input type="email" id="customerEmail" placeholder="Email"
+               oninput="if(this.value) this.value = this.value.charAt(0).toUpperCase() + this.value.slice(1);">
         <button onclick="createCustomer()">Create</button>
+        </div>
 
     </div>
 
     <div class="row">
 
-        <button onclick="apiCall('/customers')">Get All Customers</button>
+        <button onclick="apiCall('/customers')">Get All Customers</button><br><br>
 
         <label for="customerId">Customer ID:</label>
         <input type="number" id="customerId" placeholder="Customer ID">
@@ -47,7 +63,8 @@
     <h3>Plan Configuration</h3>
     <div class="row">
         <label for="planName">Plan Name:</label>
-        <input type="text" id="planName" placeholder="Plan Name">
+        <input type="text" id="planName" placeholder="Plan Name"
+               oninput="if(this.value) this.value = this.value.charAt(0).toUpperCase() + this.value.slice(1);">
 
         <label for="billingCycle">Billing Cycle:</label>
         <select id="billingCycle">
@@ -169,7 +186,9 @@
 
     function createCustomer() {
         postCall('/customers', {
-            name: document.getElementById('customerName').value,
+            firstName: document.getElementById('firstName').value,
+            middleName: document.getElementById('middleName').value,
+            lastName: document.getElementById('lastName').value,
             email: document.getElementById('customerEmail').value
         });
     }

@@ -107,6 +107,16 @@ public class BillingService {
         if (customerRepository.existsByEmail(customer.getEmail())) {
             throw new EmailAlreadyExistsException("A customer with this email already exists.");
         }
+        // Capitalize the first letters on the backend as a safety backup
+        if (customer.getFirstName() != null) {
+            customer.setFirstName(customer.getFirstName().substring(0, 1).toUpperCase() + customer.getFirstName().substring(1));
+        }
+        if (customer.getLastName() != null) {
+            customer.setLastName(customer.getLastName().substring(0, 1).toUpperCase() + customer.getLastName().substring(1));
+        }
+        if (customer.getMiddleName() != null && !customer.getMiddleName().isEmpty()) {
+            customer.setMiddleName(customer.getMiddleName().substring(0, 1).toUpperCase() + customer.getMiddleName().substring(1));
+        }
         return customerRepository.save(customer);
     }
 
