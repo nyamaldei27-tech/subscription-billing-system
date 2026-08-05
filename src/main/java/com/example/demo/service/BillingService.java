@@ -51,7 +51,25 @@ public class BillingService {
         subscription.setCustomer(customer);
         subscription.setPlan(plan);
         subscription.setStatus("ACTIVE");
-        subscription.setCurrentPeriodEnd(LocalDateTime.now().plusDays(30));
+
+        // Extract cycle dynamically from the chosen Plan
+        String cycle = plan.getBillingCycle().toUpperCase();
+        LocalDateTime initialPeriodEnd;
+
+        switch (cycle) {
+            case "WEEKLY":
+                initialPeriodEnd = LocalDateTime.now().plusWeeks(1);
+                break;
+            case "YEARLY":
+                initialPeriodEnd = LocalDateTime.now().plusYears(1);
+                break;
+            case "MONTHLY":
+            default:
+                initialPeriodEnd = LocalDateTime.now().plusMonths(1);
+                break;
+        }
+
+        subscription.setCurrentPeriodEnd(initialPeriodEnd);
         Subscription savedSubscription = subscriptionRepository.save(subscription);
 
         // 2. Automatically generate the initial invoice
@@ -133,50 +151,42 @@ public class BillingService {
                 .orElseThrow(()-> new IllegalArgumentException("Customer not found with ID:"+id));
     }
 
-    @Transactional(readOnly = true)
+
     public List<Plan> getAllPlans() {
         return planRepository.findAll();
     }
 
-    @Transactional(readOnly = true)
     public Plan getPlanById(Long id) {
         return planRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Plan not found with ID: " + id));
     }
 
-    @Transactional(readOnly = true)
     public List<Subscription> getAllSubscriptions() {
         return subscriptionRepository.findAll();
     }
 
-    @Transactional(readOnly = true)
     public List<Invoice> getAllInvoices() {
         return invoiceRepository.findAll();
     }
 
-    @Transactional(readOnly = true)
     public List<PaymentAttempt> getAllPaymentAttempts() {
         return paymentAttemptRepository.findAll();
     }
 
-    @Transactional(readOnly = true)
     public List<Invoice> getInvoicesByCustomerId(Long customerId) {
         return invoiceRepository.findBySubscriptionCustomerId(customerId);
     }
 
-    @Transactional(readOnly = true)
     public Subscription getSubscriptionById(Long id) {
         return subscriptionRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Subscription not found with ID: " + id));
     }
 
-    @Transactional(readOnly = true)
     public Invoice getInvoiceById(Long id) {
         return invoiceRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invoice not found with ID: " + id));
     }
 
-    @Transactional(readOnly = true)
     public List<PaymentAttempt> getPaymentAttemptsByCustomerId(Long customerId) {
         return paymentAttemptRepository.findByInvoiceSubscriptionCustomerId(customerId);
     }
@@ -206,8 +216,24 @@ public class BillingService {
 
             invoiceRepository.save(invoice);
 
-            // 3. Extend current subscription period by 30 days
-            subscription.setCurrentPeriodEnd(subscription.getCurrentPeriodEnd().plusDays(30));
+            String cycle = subscription.getPlan().getBillingCycle().toUpperCase();
+            LocalDateTime nextPeriodEnd;
+
+            switch (cycle) {
+                case "WEEKLY":
+                    nextPeriodEnd = subscription.getCurrentPeriodEnd().plusWeeks(1);
+                    break;
+                case "YEARLY":
+                    nextPeriodEnd = subscription.getCurrentPeriodEnd().plusYears(1);
+                    break;
+                case "MONTHLY":
+                default:
+                    nextPeriodEnd = subscription.getCurrentPeriodEnd().plusMonths(1);
+                    break;
+            }
+
+            // 4. Commit the new rolling window timeline
+            subscription.setCurrentPeriodEnd(nextPeriodEnd);
             subscriptionRepository.save(subscription);
         }
     }
