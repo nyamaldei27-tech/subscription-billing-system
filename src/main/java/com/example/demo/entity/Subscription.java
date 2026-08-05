@@ -30,12 +30,6 @@ public class Subscription {
     @Column(name = "current_period_end", nullable = false)
     private LocalDateTime currentPeriodEnd;
 
-    @Column(name = "start_date", nullable = false)
-    private LocalDateTime startDate = LocalDateTime.now();
-
-    @Column(name = "next_billing_date")
-    private LocalDateTime nextBillingDate;
-
     //Getters and setters
     public Long getId()
     {return id;}
