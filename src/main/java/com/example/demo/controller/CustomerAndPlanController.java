@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import com.example.demo.dto.CustomerRequest;
 import com.example.demo.entity.Customer;
 import com.example.demo.entity.Plan;
 import com.example.demo.service.BillingService;
@@ -24,8 +25,13 @@ public class CustomerAndPlanController {
     // --- Customer Routes ---
 
     @PostMapping("/customers")
-    public ResponseEntity<Customer> createCustomer(@Valid @RequestBody Customer customer) {
-        Customer savedCustomer = billingService.createCustomer(customer);
+    public ResponseEntity<Customer> createCustomer(@Valid @RequestBody CustomerRequest payload) {
+        Customer newCustomer = new Customer();
+        newCustomer.setFirstName(payload.getFirstName());
+        newCustomer.setMiddleName(payload.getMiddleName());
+        newCustomer.setLastName(payload.getLastName());
+        newCustomer.setEmail(payload.getEmail());
+        Customer savedCustomer = billingService.createCustomer(new Customer());
         return ResponseEntity.ok(savedCustomer);
     }
 
@@ -43,7 +49,13 @@ public class CustomerAndPlanController {
 
     @PostMapping("/plans")
     public ResponseEntity<Plan> createPlan(@Valid @RequestBody Plan plan) {
-        Plan savedPlan = billingService.createPlan(plan);
+
+        Plan newPlan = new Plan();
+        newPlan.setName(plan.getName());
+        newPlan.setBillingCycle(plan.getBillingCycle());
+        newPlan.setPriceCents(plan.getPriceCents());
+
+        Plan savedPlan = billingService.createPlan(newPlan);
         return ResponseEntity.ok(savedPlan);
     }
 

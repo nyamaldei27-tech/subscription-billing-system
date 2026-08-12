@@ -114,14 +114,14 @@
 
 <!-- 4. INVOICES -->
 <div class="card">
-    <h3>Invoices Ledger</h3>
+    <h3>Invoices </h3>
     <div class="row">
         <button onclick="apiCall('/invoices')">Get All Invoices</button>
 
         <label for="searchInvoiceId">Search Invoice ID:</label>
         <input type="number" id="searchInvoiceId" placeholder="Invoice ID">
 
-        <button onclick="apiCall('/invoices/' + document.getElementById('searchInvoiceId').value)">Get By ID</button>
+        <button onclick="apiCall('/invoices/customer/' + document.getElementById('invoiceCustomerId').value)">Get By ID</button>
     </div>
     <div class="row">
 
@@ -166,56 +166,72 @@
     async function apiCall(path) {
         try {
             const r = await fetch(API_BASE + path);
-            const d = await r.json();
-            out.textContent = JSON.stringify(d, null, 2);
-        } catch (e) { out.textContent = "Error: " + e.message; }
+            const isJson = r.headers.get('content-type')?.includes('application/json');
+            const d = isJson? await r.json(): await r.text();
+
+            if(!r.ok) throw new Error(isJson? d.message || JSON.stringify(d): d);
+            out.textContent= typeof d === 'object' ? JSON.stringify(d, null, 2) : d;
+        } catch (e) {
+            out.textContent = "Error: " + e.message;
+        }
     }
 
-    // Handle Custom POST Requests
     async function postCall(path, bodyObj) {
-        try {
-            const r = await fetch(API_BASE + path, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(bodyObj)
-            });
-            const d = await r.json();
-            out.textContent = JSON.stringify(d, null, 2);
-        } catch (e) { out.textContent = "Error: " + e.message; }
+        try { const r = await fetch(API_BASE + path,{
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(bodyObj),
+        });
+            const isJson = r.headers.get('content-type')?.includes('application/json');
+            const d = isJson? await r.json(): await r.text();
+
+            if (!r.ok) throw new Error(isJson? d.message || JSON.stringify(d): d);
+            out.textContent= typeof d === 'object' ? JSON.stringify(d, null, 2) : d;
+        }catch (e) { out.textContent = "Error: " + e.message; }
+
+
     }
 
-    function createCustomer() {
-        postCall('/customers', {
+    async function createCustomer() {
+
+       const payload = {
             firstName: document.getElementById('firstName').value,
             middleName: document.getElementById('middleName').value,
             lastName: document.getElementById('lastName').value,
             email: document.getElementById('customerEmail').value
-        });
+        };
+
+       await postCall('/customers', payload);
     }
 
-    function createPlan() {
+    async function createPlan() {
 
-        postCall('/plans', {
+        const payload = {
             name: document.getElementById('planName').value,
             priceCents: parseInt(document.getElementById('planPrice').value),
             billingCycle: document.getElementById('billingCycle').value,
             billing_Cycle: document.getElementById('billingCycle').value
-        });
+        };
+        await postCall('/plans', payload);
     }
 
-    function createSubscription() {
-        postCall('/subscriptions', {
+    async function createSubscription() {
+       const payload = {
             customerId: parseInt(document.getElementById('subCustomerId').value),
             planId: parseInt(document.getElementById('subPlanId').value),
 
-        });
+        };
+
+       await postCall('/billing/subscriptions', payload);
     }
 
-    function processPayment() {
-        postCall('/payments/process', {
+    async function processPayment() {
+
+        const payload = {
             invoiceId: parseInt(document.getElementById('payInvoiceId').value),
             status: document.getElementById('payStatus').value
-        });
+        };
+        await postCall('/payments/process', payload);
     }
 </script>
 </body>

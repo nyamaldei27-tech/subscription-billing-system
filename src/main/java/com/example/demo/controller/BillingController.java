@@ -1,22 +1,24 @@
 package com.example.demo.controller;
 
+import com.example.demo.dto.PaymentRequest;
+import com.example.demo.dto.SubscriptionRequest;
 import com.example.demo.entity.Invoice;
 import com.example.demo.entity.PaymentAttempt;
 import com.example.demo.entity.Subscription;
 import com.example.demo.service.BillingService;
 import org.springframework.validation.annotation.Validated;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;// Covers RestController,Mapping,RequestBody,PathVariable,CrossOrigin
+import jakarta.validation.Valid;
 
 import java.util.List;
 import java.util.Map;
 
 @RestController
 @CrossOrigin(origins = "*") //<--allows the web code to access these endpoints
-@RequestMapping("/api/billing")
+@RequestMapping("/api")
 @Validated
 public class BillingController {
 
@@ -31,17 +33,15 @@ public class BillingController {
      * Expects JSON: { "customerId": 1, "planId": 2 }
      */
     @PostMapping("/subscriptions")
-    public ResponseEntity<?> subscribe(@RequestBody Map<String, @NotNull(message = "ID cannot be null") Long> payload) {
-        Long customerId = payload.get("customerId");
-        Long planId = payload.get("planId");
+    public ResponseEntity<?> subscribe(@RequestBody SubscriptionRequest payload) {
 
         // Keep a simple fallback check in case the keys themselves are entirely missing from the JSON
-        if (customerId == null || planId == null) {
+        if (payload.getCustomerId() == null || payload.getPlanId() == null) {
             return ResponseEntity.badRequest().body("Both customerId and planId must be provided in the request body.");
         }
 
         try {
-            Subscription subscription = billingService.createSubscription(customerId, planId);
+            Subscription subscription = billingService.createSubscription(payload.getCustomerId(), payload.getPlanId());
             return ResponseEntity.ok(subscription);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -105,23 +105,14 @@ public class BillingController {
     }
 
     @PostMapping("/payments/process")
-    public ResponseEntity<Invoice> processPayment(@RequestBody Map<String, Object> payload) {
-        // 1. Pull the raw objects out of the map first (without converting them yet)
-        Object rawInvoiceId = payload.get("invoiceId");
-        Object rawStatus = payload.get("status");
+    public ResponseEntity<Invoice> processPayment(@RequestBody @Valid PaymentRequest payload) {
+       try {
+           Invoice invoice = billingService.processPayment(payload.getInvoiceId(), payload.getStatus());
+           return ResponseEntity.ok(invoice);
 
-        // 2. Safely check if either of them are missing
-        if (rawInvoiceId == null || rawStatus == null) {
-            throw new IllegalArgumentException("Both invoiceId and status must be provided in the request body.");
-        }
-
-        // 3. Now that we are 100% sure they exist, it is safe to convert them!
-        Long invoiceId = Long.valueOf(rawInvoiceId.toString());
-        String status = rawStatus.toString();
-
-        // 4. Pass them to your service layer
-        Invoice updatedInvoice = billingService.processPayment(invoiceId, status);
-        return ResponseEntity.ok(updatedInvoice);
+       } catch (IllegalArgumentException e) {
+           return ResponseEntity.badRequest().body(null);
+       }
     }
 
     @GetMapping("/payment-attempts")

@@ -19,7 +19,7 @@ CREATE TABLE subscriptions(
     customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE ,
     plan_id INTEGER REFERENCES plans(id),
     status VARCHAR(50) NOT NULL ,
-    current_period_end TIMESTAMP NOT NULL
+    current_period_end TIMESTAMP NOT NULL,
     canceled_at TIMESTAMP,
     churn_risk_score INTEGER DEFAULT 0
 );
