@@ -1,14 +1,16 @@
 package com.example.demo.dto;
 
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 
 public class CustomerRequest {
-    @NotNull(message = "First name is Required")
+    @NotBlank(message = "First name is Required")
     private String firstName;
     private String middleName;
-    @NotNull(message = "Last name is required")
+    @NotBlank(message = "Last name is required")
     private String lastName;
-    @NotNull(message = "Customer email is required")
+    @NotBlank(message = "Customer email is required")
+    @Email(message = "Email must be a valid email address")
     private String email;
 
     public String getFirstName() {

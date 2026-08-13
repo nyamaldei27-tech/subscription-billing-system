@@ -1,5 +1,3 @@
-package com.example.demo.controller;
-
 import com.example.demo.dto.CustomerRequest;
 import com.example.demo.entity.Customer;
 import com.example.demo.entity.Plan;

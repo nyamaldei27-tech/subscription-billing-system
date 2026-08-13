@@ -36,14 +36,14 @@
         <label for="lastName">Last Name*:</label>
         <input type="text" id="lastName" placeholder="Last Name" required
                oninput="if(this.value) this.value = this.value.charAt(0).toUpperCase() + this.value.slice(1);">
-        </div><br>
+        </div>
+        <br>
         <div class="col">
-        <label for="customerEmail">Customer Email</label>
-        <input type="email" id="customerEmail" placeholder="Email"
+        <label for="email">Customer Email*</label>
+        <input type="email" id="email" placeholder="Email"
                oninput="if(this.value) this.value = this.value.charAt(0).toUpperCase() + this.value.slice(1);">
         <button onclick="createCustomer()">Create</button>
         </div>
-
     </div>
 
     <div class="row">
@@ -194,11 +194,22 @@
 
     async function createCustomer() {
 
+        const firstName=document.getElementById('firstName')?.value.trim();
+        const middleName=document.getElementById('middleName')?.value.trim();
+        const lastName=document.getElementById('lastName')?.value.trim();
+        const email=document.getElementById('email')?.value.trim();
+
+        if (!firstName || !lastName || !email){
+            document.getElementById('output').textContent = "Error: First name, Last name, and Email are required fields.";
+            return;
+        }
+
        const payload = {
-            firstName: document.getElementById('firstName').value,
-            middleName: document.getElementById('middleName').value,
-            lastName: document.getElementById('lastName').value,
-            email: document.getElementById('customerEmail').value
+            firstName: firstName,
+           middleName: middleName,
+           lastName: lastName,
+           email: email,
+
         };
 
        await postCall('/customers', payload);
