@@ -21,11 +21,6 @@
 	<developers>
 		<developer/>
 	</developers>
-    <modules>
-        <module>account-service</module>
-	    <module>billing-service</module>
-        <module>core</module>
-    </modules>
     <scm>
 		<connection/>
 		<developerConnection/>
@@ -34,6 +29,8 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<maven.compiler.source>21</maven.compiler.source>
+		<maven.compiler.target>21</maven.compiler.target>
 	</properties>
 	<dependencies>
 		<dependency>
