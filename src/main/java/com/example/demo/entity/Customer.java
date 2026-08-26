@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -15,14 +16,12 @@ public class Customer {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-
     @NotBlank(message = "First name is required")
     @Size(min = 2, max = 50, message = "First name must be between 2 and 50 characters")
     @Pattern(regexp = "^[a-zA-Z\\s\\-]+$", message = "First name can only contain letters, spaces, or hyphens")
     @Column(name = "first_name", nullable = false)
     private String firstName;
 
-    // Middle Name is optional, so we do NOT use @NotBlank or @NotNull
     @Size(max = 50, message = "Middle name cannot exceed 50 characters")
     @Pattern(regexp = "^[a-zA-Z\\s\\-]*$", message = "Middle name can only contain letters, spaces, or hyphens")
     @Column(name = "middle_name")
@@ -39,10 +38,9 @@ public class Customer {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(name = "created_at", updatable = false)
+    @Column(name = "created_at", updatable = false, nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    // Getters and setters
     public Long getId() {
         return id;
     }
@@ -51,7 +49,6 @@ public class Customer {
         this.id = id;
     }
 
-    // --- First Name Getters and Setters ---
     public String getFirstName() {
         return firstName;
     }
@@ -60,7 +57,6 @@ public class Customer {
         this.firstName = firstName;
     }
 
-    // --- Middle Name Getters and Setters ---
     public String getMiddleName() {
         return middleName;
     }
@@ -69,7 +65,6 @@ public class Customer {
         this.middleName = middleName;
     }
 
-    // --- Last Name Getters and Setters ---
     public String getLastName() {
         return lastName;
     }

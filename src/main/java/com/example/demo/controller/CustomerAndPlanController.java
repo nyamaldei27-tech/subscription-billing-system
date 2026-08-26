@@ -1,10 +1,12 @@
 package com.example.demo.controller;
 
 import com.example.demo.dto.CustomerRequest;
+import com.example.demo.dto.PlanRequest;
 import com.example.demo.entity.Customer;
 import com.example.demo.entity.Plan;
 import com.example.demo.service.BillingService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,7 +34,9 @@ public class CustomerAndPlanController {
         newCustomer.setLastName(payload.getLastName());
         newCustomer.setEmail(payload.getEmail());
         Customer savedCustomer = billingService.createCustomer(newCustomer);
-        return ResponseEntity.ok(savedCustomer);
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(savedCustomer);
     }
 
     @GetMapping("/customers/{id}")
@@ -48,15 +52,17 @@ public class CustomerAndPlanController {
     // --- Plan Routes ---
 
     @PostMapping("/plans")
-    public ResponseEntity<Plan> createPlan(@Valid @RequestBody Plan plan) {
+    public ResponseEntity<Plan> createPlan(@Valid @RequestBody PlanRequest payload) {
 
         Plan newPlan = new Plan();
-        newPlan.setName(plan.getName());
-        newPlan.setBillingCycle(plan.getBillingCycle());
-        newPlan.setPriceCents(plan.getPriceCents());
+        newPlan.setName(payload.getName());
+        newPlan.setBillingCycle(payload.getBillingCycle());
+        newPlan.setPriceCents(payload.getPriceCents());
 
         Plan savedPlan = billingService.createPlan(newPlan);
-        return ResponseEntity.ok(savedPlan);
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(savedPlan);
     }
 
     @GetMapping("/plans/{id}")
@@ -67,8 +73,6 @@ public class CustomerAndPlanController {
 
     @GetMapping("/plans")
     public ResponseEntity< List<Plan>> getAllPlans() {
-        List<Plan> Plans = billingService.getAllPlans();
-
-        return ResponseEntity.ok(Plans);
+        return ResponseEntity.ok(billingService.getAllPlans());
     }
 }

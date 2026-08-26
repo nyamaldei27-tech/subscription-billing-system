@@ -3,6 +3,7 @@ package com.example.demo.service;
 import com.example.demo.entity.*;
 import com.example.demo.exception.EmailAlreadyExistsException;
 import com.example.demo.exception.PlanNameAlreadyExistsException;
+import com.example.demo.exception.ResourceNotFoundException;
 import com.example.demo.repository.*;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -10,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class BillingService {
@@ -41,33 +43,33 @@ public class BillingService {
     @Transactional
     public Subscription createSubscription(Long customerId, Long planId) {
         Customer customer = customerRepository.findById(customerId)
-                .orElseThrow(() -> new IllegalArgumentException("Customer not found with ID: " + customerId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Customer " + customerId + " does not exist."
+                ));
 
         Plan plan = planRepository.findById(planId)
-                .orElseThrow(() -> new IllegalArgumentException("Plan not found with ID: " + planId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Plan " + planId + " does not exist."
+                ));
 
         // 1. Create and save the subscription
         Subscription subscription = new Subscription();
-        subscription.setCustomer(customer);
+        subscription.setCustomerId(customer.getId());
         subscription.setPlan(plan);
         subscription.setStatus("ACTIVE");
 
         // Extract cycle dynamically from the chosen Plan
-        String cycle = plan.getBillingCycle().toUpperCase();
-        LocalDateTime initialPeriodEnd;
+        LocalDateTime now = LocalDateTime.now();
+        String cycle = plan.getBillingCycle().toUpperCase(Locale.ROOT);
 
-        switch (cycle) {
-            case "WEEKLY":
-                initialPeriodEnd = LocalDateTime.now().plusWeeks(1);
-                break;
-            case "YEARLY":
-                initialPeriodEnd = LocalDateTime.now().plusYears(1);
-                break;
-            case "MONTHLY":
-            default:
-                initialPeriodEnd = LocalDateTime.now().plusMonths(1);
-                break;
-        }
+        LocalDateTime initialPeriodEnd = switch (cycle) {
+            case "WEEKLY" -> now.plusWeeks(1);
+            case "MONTHLY" -> now.plusMonths(1);
+            case "YEARLY" -> now.plusYears(1);
+            default -> throw new IllegalStateException(
+                    "Unsupported billing cycle: " + cycle
+            );
+        };
 
         subscription.setCurrentPeriodEnd(initialPeriodEnd);
         Subscription savedSubscription = subscriptionRepository.save(subscription);
@@ -89,7 +91,9 @@ public class BillingService {
     @Transactional
     public Invoice processPayment(Long invoiceId, String paymentStatus) {
         Invoice invoice = invoiceRepository.findById(invoiceId)
-                .orElseThrow(() -> new IllegalArgumentException("Invoice not found with ID: " + invoiceId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Invoice " + invoiceId + " does not exist."
+                ));
 
         // 1. Record the history attempt tracking record
         PaymentAttempt attempt = new PaymentAttempt();
@@ -100,9 +104,17 @@ public class BillingService {
         // 2. Update the invoice status based on success/failure
         if ("SUCCESS".equalsIgnoreCase(paymentStatus)) {
             invoice.setStatus("PAID");
+
+            Subscription subscription = invoice.getSubscription();
+
+            if ("PAST_DUE".equalsIgnoreCase(subscription.getStatus())) {
+                subscription.setStatus("ACTIVE");
+                subscriptionRepository.save(subscription);
+            }
+
         } else {
             invoice.setStatus("FAILED");
-            // If payment fails, mark the corresponding subscription as past due
+
             Subscription subscription = invoice.getSubscription();
             subscription.setStatus("PAST_DUE");
             subscriptionRepository.save(subscription);
@@ -118,7 +130,6 @@ public class BillingService {
         }
         return planRepository.save(plan);
     }
-
 
     @Transactional
     public Customer createCustomer(Customer customer) {
@@ -148,45 +159,61 @@ public class BillingService {
     @Transactional(readOnly = true)
     public Customer getCustomerById(Long id) {
         return customerRepository.findById(id)
-                .orElseThrow(()-> new IllegalArgumentException("Customer not found with ID:"+id));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Customer " + id + " does not exist."
+                ));
     }
 
-
+    @Transactional(readOnly = true)
     public List<Plan> getAllPlans() {
         return planRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
     public Plan getPlanById(Long id) {
         return planRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Plan not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Plan " + id + " does not exist."
+                ));
     }
 
+    @Transactional(readOnly = true)
     public List<Subscription> getAllSubscriptions() {
         return subscriptionRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
     public List<Invoice> getAllInvoices() {
         return invoiceRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
     public List<PaymentAttempt> getAllPaymentAttempts() {
         return paymentAttemptRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
     public List<Invoice> getInvoicesByCustomerId(Long customerId) {
         return invoiceRepository.findBySubscriptionCustomerId(customerId);
     }
 
+    @Transactional(readOnly = true)
     public Subscription getSubscriptionById(Long id) {
         return subscriptionRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Subscription not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Subscription " + id + " does not exist."
+                ));
     }
 
+    @Transactional(readOnly = true)
     public Invoice getInvoiceById(Long id) {
         return invoiceRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Invoice not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Invoice " + id + " does not exist."
+                ));
     }
 
+    @Transactional(readOnly = true)
     public List<PaymentAttempt> getPaymentAttemptsByCustomerId(Long customerId) {
         return paymentAttemptRepository.findByInvoiceSubscriptionCustomerId(customerId);
     }
@@ -217,20 +244,11 @@ public class BillingService {
             invoiceRepository.save(invoice);
 
             String cycle = subscription.getPlan().getBillingCycle().toUpperCase();
-            LocalDateTime nextPeriodEnd;
-
-            switch (cycle) {
-                case "WEEKLY":
-                    nextPeriodEnd = subscription.getCurrentPeriodEnd().plusWeeks(1);
-                    break;
-                case "YEARLY":
-                    nextPeriodEnd = subscription.getCurrentPeriodEnd().plusYears(1);
-                    break;
-                case "MONTHLY":
-                default:
-                    nextPeriodEnd = subscription.getCurrentPeriodEnd().plusMonths(1);
-                    break;
-            }
+            LocalDateTime nextPeriodEnd = switch (cycle) {
+                case "WEEKLY" -> subscription.getCurrentPeriodEnd().plusWeeks(1);
+                case "YEARLY" -> subscription.getCurrentPeriodEnd().plusYears(1);
+                default -> subscription.getCurrentPeriodEnd().plusMonths(1);
+            };
 
             // 4. Commit the new rolling window timeline
             subscription.setCurrentPeriodEnd(nextPeriodEnd);

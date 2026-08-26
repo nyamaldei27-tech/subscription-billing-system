@@ -1,20 +1,22 @@
 package com.example.demo.dto;
 
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 
 public class PaymentRequest {
-    @NotNull
-    private Long invoiceId;
-    @NotNull
+
+    @NotBlank(message = "Payment status is required")
+    @Pattern(
+            regexp = "^(SUCCESS|FAILED)$",
+            message = "Payment status must be SUCCESS or FAILED"
+    )
     private String status;
 
-    public Long getInvoiceId() {
-            return invoiceId;
-    }
-    public void setInvoiceId(Long invoiceId) {
-        this.invoiceId = invoiceId;
-    }
     public String getStatus() {
         return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 }

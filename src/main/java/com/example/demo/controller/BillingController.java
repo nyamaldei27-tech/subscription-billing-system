@@ -6,20 +6,16 @@ import com.example.demo.entity.Invoice;
 import com.example.demo.entity.PaymentAttempt;
 import com.example.demo.entity.Subscription;
 import com.example.demo.service.BillingService;
-import org.springframework.validation.annotation.Validated;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;// Covers RestController,Mapping,RequestBody,PathVariable,CrossOrigin
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
-@CrossOrigin(origins = "*") //<--allows the web code to access these endpoints
+@CrossOrigin
 @RequestMapping("/api")
-@Validated
 public class BillingController {
 
     private final BillingService billingService;
@@ -28,24 +24,18 @@ public class BillingController {
         this.billingService = billingService;
     }
 
-    /**
-     * Endpoint to purchase a subscription
-     * Expects JSON: { "customerId": 1, "planId": 2 }
-     */
     @PostMapping("/subscriptions")
-    public ResponseEntity<?> subscribe(@RequestBody SubscriptionRequest payload) {
+    public ResponseEntity<Subscription> createSubscription(
+            @Valid @RequestBody SubscriptionRequest request) {
 
-        // Keep a simple fallback check in case the keys themselves are entirely missing from the JSON
-        if (payload.getCustomerId() == null || payload.getPlanId() == null) {
-            return ResponseEntity.badRequest().body("Both customerId and planId must be provided in the request body.");
-        }
+        Subscription subscription = billingService.createSubscription(
+                request.getCustomerId(),
+                request.getPlanId()
+        );
 
-        try {
-            Subscription subscription = billingService.createSubscription(payload.getCustomerId(), payload.getPlanId());
-            return ResponseEntity.ok(subscription);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(subscription);
     }
 
     @GetMapping("/subscriptions")
@@ -54,75 +44,65 @@ public class BillingController {
     }
 
     @GetMapping("/subscriptions/{id}")
-    public ResponseEntity<Subscription> getSubscriptionById(@PathVariable Long id) {
-        return ResponseEntity.ok(billingService.getSubscriptionById(id));
+    public ResponseEntity<Subscription> getSubscriptionById(
+            @PathVariable Long id) {
+
+        return ResponseEntity.ok(
+                billingService.getSubscriptionById(id)
+        );
     }
 
-
-    /**
-     * Endpoint to simulate paying an invoice
-     * Expects JSON: { "status": "SUCCESS" } or { "status": "FAILED" }
-     */
     @PostMapping("/invoices/{invoiceId}/payment")
-    public ResponseEntity<?> payInvoice(@PathVariable Long invoiceId, @RequestBody Map<String, @NotBlank @Pattern(regexp = "^(?i)(SUCCESS|FAILED)$", message = "Must be SUCCESS or FAILED") String> payload) {
-        String status = payload.get("status");
+    public ResponseEntity<Invoice> payInvoice(
+            @PathVariable Long invoiceId,
+            @Valid @RequestBody PaymentRequest request) {
 
-        if (status == null || (!status.equalsIgnoreCase("SUCCESS") && !status.equalsIgnoreCase("FAILED"))) {
-            return ResponseEntity.badRequest().body("Invalid payment status. Must be SUCCESS or FAILED");
-        }
+        Invoice invoice = billingService.processPayment(
+                invoiceId,
+                request.getStatus()
+        );
 
-        try {
-            Invoice invoice = billingService.processPayment(invoiceId, status);
-            return ResponseEntity.ok(invoice);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
-
-    @GetMapping("/invoices/customer/{customerId}")
-    public ResponseEntity<?> getInvoicesByCustomer(@PathVariable Long customerId) {
-        try {
-            List<Invoice> invoices = billingService.getInvoicesByCustomerId(customerId);
-            return ResponseEntity.ok(invoices);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+        return ResponseEntity.ok(invoice);
     }
 
     @GetMapping("/invoices")
-    public ResponseEntity<?> getAllInvoices() {
-        try {
-            List<Invoice> invoices = billingService.getAllInvoices();
-            return ResponseEntity.ok(invoices);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+    public ResponseEntity<List<Invoice>> getAllInvoices() {
+        return ResponseEntity.ok(
+                billingService.getAllInvoices()
+        );
     }
 
     @GetMapping("/invoices/{id}")
-    public ResponseEntity<Invoice> getInvoiceById(@PathVariable Long id) {
-        return ResponseEntity.ok(billingService.getInvoiceById(id));
+    public ResponseEntity<Invoice> getInvoiceById(
+            @PathVariable Long id) {
+
+        return ResponseEntity.ok(
+                billingService.getInvoiceById(id)
+        );
     }
 
-    @PostMapping("/payments/process")
-    public ResponseEntity<Invoice> processPayment(@RequestBody @Valid PaymentRequest payload) {
-       try {
-           Invoice invoice = billingService.processPayment(payload.getInvoiceId(), payload.getStatus());
-           return ResponseEntity.ok(invoice);
+    @GetMapping("/invoices/customer/{customerId}")
+    public ResponseEntity<List<Invoice>> getInvoicesByCustomer(
+            @PathVariable Long customerId) {
 
-       } catch (IllegalArgumentException e) {
-           return ResponseEntity.badRequest().body(null);
-       }
+        return ResponseEntity.ok(
+                billingService.getInvoicesByCustomerId(customerId)
+        );
     }
 
     @GetMapping("/payment-attempts")
     public ResponseEntity<List<PaymentAttempt>> getAllPaymentAttempts() {
-        return ResponseEntity.ok(billingService.getAllPaymentAttempts());
+        return ResponseEntity.ok(
+                billingService.getAllPaymentAttempts()
+        );
     }
 
     @GetMapping("/customers/{customerId}/payment-attempts")
-    public ResponseEntity<List<PaymentAttempt>> getPaymentAttemptsByCustomerId(@PathVariable Long customerId) {
-        List<PaymentAttempt> attempts = billingService.getPaymentAttemptsByCustomerId(customerId);
-        return ResponseEntity.ok(attempts);
+    public ResponseEntity<List<PaymentAttempt>> getPaymentAttemptsByCustomerId(
+            @PathVariable Long customerId) {
+
+        return ResponseEntity.ok(
+                billingService.getPaymentAttemptsByCustomerId(customerId)
+        );
     }
 }

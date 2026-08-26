@@ -1,17 +1,28 @@
 package com.example.demo.dto;
 
-
 import jakarta.validation.constraints.NotNull;
 
 public class SubscriptionRequest {
-    @NotNull(message = "Customer ID cannot e null")
-    private Long CustomerId;
+
+    @NotNull(message = "Customer ID cannot be null")
+    private Long customerId;
+
     @NotNull(message = "Plan ID cannot be null")
-    private Long PlanId;
+    private Long planId;
 
+    public Long getCustomerId() {
+        return customerId;
+    }
 
-    public Long getCustomerId() { return CustomerId; }
-    public void setCustomerId(Long CustomerId) { this.CustomerId = CustomerId; }
-    public Long getPlanId() { return PlanId; }
-    public void setPlanId(Long PlanId) { this.PlanId = PlanId; }
+    public void setCustomerId(Long customerId) {
+        this.customerId = customerId;
+    }
+
+    public Long getPlanId() {
+        return planId;
+    }
+
+    public void setPlanId(Long planId) {
+        this.planId = planId;
+    }
 }
