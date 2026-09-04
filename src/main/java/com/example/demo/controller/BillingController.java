@@ -1,10 +1,6 @@
 package com.example.demo.controller;
 
-import com.example.demo.dto.PaymentRequest;
-import com.example.demo.dto.SubscriptionRequest;
-import com.example.demo.entity.Invoice;
-import com.example.demo.entity.PaymentAttempt;
-import com.example.demo.entity.Subscription;
+import com.example.demo.dto.*;
 import com.example.demo.service.BillingService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -14,7 +10,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@CrossOrigin
 @RequestMapping("/api")
 public class BillingController {
 
@@ -24,27 +19,37 @@ public class BillingController {
         this.billingService = billingService;
     }
 
+    // =========================================================
+    // SUBSCRIPTIONS
+    // =========================================================
+
     @PostMapping("/subscriptions")
-    public ResponseEntity<Subscription> createSubscription(
+    public ResponseEntity<SubscriptionResponse> createSubscription(
             @Valid @RequestBody SubscriptionRequest request) {
 
-        Subscription subscription = billingService.createSubscription(
-                request.getCustomerId(),
-                request.getPlanId()
-        );
+        SubscriptionResponse response =
+                billingService.createSubscription(
+                        request.getCustomerId(),
+                        request.getPlanId()
+                );
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(subscription);
+                .body(response);
     }
 
     @GetMapping("/subscriptions")
-    public ResponseEntity<List<Subscription>> getAllSubscriptions() {
-        return ResponseEntity.ok(billingService.getAllSubscriptions());
+    public ResponseEntity<List<SubscriptionResponse>>
+    getAllSubscriptions() {
+
+        return ResponseEntity.ok(
+                billingService.getAllSubscriptions()
+        );
     }
 
     @GetMapping("/subscriptions/{id}")
-    public ResponseEntity<Subscription> getSubscriptionById(
+    public ResponseEntity<SubscriptionResponse>
+    getSubscriptionById(
             @PathVariable Long id) {
 
         return ResponseEntity.ok(
@@ -52,28 +57,44 @@ public class BillingController {
         );
     }
 
-    @PostMapping("/invoices/{invoiceId}/payment")
-    public ResponseEntity<Invoice> payInvoice(
-            @PathVariable Long invoiceId,
-            @Valid @RequestBody PaymentRequest request) {
+    @GetMapping("/subscriptions/customer/{customerId}")
+    public ResponseEntity<List<SubscriptionResponse>>
+    getSubscriptionsByCustomer(
+            @PathVariable Long customerId) {
 
-        Invoice invoice = billingService.processPayment(
-                invoiceId,
-                request.getStatus()
+        return ResponseEntity.ok(
+                billingService.getSubscriptionsByCustomerId(
+                        customerId
+                )
         );
-
-        return ResponseEntity.ok(invoice);
     }
 
+    @PutMapping("/subscriptions/{id}/cancel")
+    public ResponseEntity<SubscriptionResponse>
+    cancelSubscription(
+            @PathVariable Long id) {
+
+        return ResponseEntity.ok(
+                billingService.cancelSubscription(id)
+        );
+    }
+
+    // =========================================================
+    // INVOICES
+    // =========================================================
+
     @GetMapping("/invoices")
-    public ResponseEntity<List<Invoice>> getAllInvoices() {
+    public ResponseEntity<List<InvoiceResponse>>
+    getAllInvoices() {
+
         return ResponseEntity.ok(
                 billingService.getAllInvoices()
         );
     }
 
     @GetMapping("/invoices/{id}")
-    public ResponseEntity<Invoice> getInvoiceById(
+    public ResponseEntity<InvoiceResponse>
+    getInvoiceById(
             @PathVariable Long id) {
 
         return ResponseEntity.ok(
@@ -82,27 +103,60 @@ public class BillingController {
     }
 
     @GetMapping("/invoices/customer/{customerId}")
-    public ResponseEntity<List<Invoice>> getInvoicesByCustomer(
+    public ResponseEntity<List<InvoiceResponse>>
+    getInvoicesByCustomer(
             @PathVariable Long customerId) {
 
         return ResponseEntity.ok(
-                billingService.getInvoicesByCustomerId(customerId)
+                billingService.getInvoicesByCustomerId(
+                        customerId
+                )
         );
     }
 
+    // =========================================================
+    // PAYMENTS
+    // =========================================================
+
+    @PostMapping("/invoices/{invoiceId}/payment")
+    public ResponseEntity<InvoiceResponse> payInvoice(
+            @PathVariable Long invoiceId,
+            @Valid @RequestBody PaymentRequest request) {
+
+        InvoiceResponse invoice =
+                billingService.processPayment(
+                        invoiceId,
+                        request.getStatus()
+                );
+
+        return ResponseEntity.ok(invoice);
+    }
+
+    // =========================================================
+    // PAYMENT ATTEMPTS
+    // =========================================================
+
     @GetMapping("/payment-attempts")
-    public ResponseEntity<List<PaymentAttempt>> getAllPaymentAttempts() {
+    public ResponseEntity<List<PaymentAttemptResponse>>
+    getAllPaymentAttempts() {
+
         return ResponseEntity.ok(
                 billingService.getAllPaymentAttempts()
         );
     }
 
-    @GetMapping("/customers/{customerId}/payment-attempts")
-    public ResponseEntity<List<PaymentAttempt>> getPaymentAttemptsByCustomerId(
+    @GetMapping(
+            "/customers/{customerId}/payment-attempts"
+    )
+    public ResponseEntity<List<PaymentAttemptResponse>>
+    getPaymentAttemptsByCustomerId(
             @PathVariable Long customerId) {
 
         return ResponseEntity.ok(
-                billingService.getPaymentAttemptsByCustomerId(customerId)
+                billingService
+                        .getPaymentAttemptsByCustomerId(
+                                customerId
+                        )
         );
     }
 }

@@ -21,7 +21,7 @@ public class Plan {
     @NotNull(message = "Price in cents is required")
     @PositiveOrZero(message = "Price cents must be zero or a positive value")
     @Column(name = "price_cents", nullable = false)
-    private Integer priceCents;
+    private Long priceCents;
 
     @NotBlank(message = "Billing cycle is required")
     @Pattern(regexp = "^(WEEKLY|MONTHLY|YEARLY)$", message = "Billing cycle must be WEEKLY, MONTHLY or YEARLY")
@@ -44,11 +44,11 @@ public class Plan {
         this.name = name;
     }
 
-    public Integer getPriceCents() {
+    public Long getPriceCents() {
         return priceCents;
     }
 
-    public void setPriceCents(Integer priceCents) {
+    public void setPriceCents(Long priceCents) {
         this.priceCents = priceCents;
     }
 

@@ -4,7 +4,6 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.PositiveOrZero;
 
 import java.time.LocalDateTime;
 
@@ -21,19 +20,23 @@ public class Invoice {
     @JoinColumn(name = "subscription_id", nullable = false)
     private Subscription subscription;
 
-    @NotNull(message = "Amount cents is required")
-    @PositiveOrZero(message = "Amount cents must be zero or a positive value")
     @Column(name = "amount_cents", nullable = false)
-    private Integer amountCents;
+    private Long amountCents;
 
     @NotBlank(message = "Invoice status is required")
-    @Pattern(regexp = "^(PENDING|PAID|FAILED)$", message = "Invoice status must be PENDING, PAID or FAILED")
+    @Pattern(
+            regexp = "^(PENDING|PAID|FAILED)$",
+            message = "Invoice status must be PENDING, PAID or FAILED"
+    )
     @Column(nullable = false)
     private String status;
 
     @NotNull(message = "Due date is required")
     @Column(name = "due_date", nullable = false)
     private LocalDateTime dueDate;
+
+    @Column(name = "paid_at")
+    private LocalDateTime paidAt;
 
     public Long getId() {
         return id;
@@ -51,11 +54,11 @@ public class Invoice {
         this.subscription = subscription;
     }
 
-    public Integer getAmountCents() {
+    public Long getAmountCents() {
         return amountCents;
     }
 
-    public void setAmountCents(Integer amountCents) {
+    public void setAmountCents(Long amountCents) {
         this.amountCents = amountCents;
     }
 
@@ -73,5 +76,13 @@ public class Invoice {
 
     public void setDueDate(LocalDateTime dueDate) {
         this.dueDate = dueDate;
+    }
+
+    public LocalDateTime getPaidAt() {
+        return paidAt;
+    }
+
+    public void setPaidAt(LocalDateTime paidAt) {
+        this.paidAt = paidAt;
     }
 }

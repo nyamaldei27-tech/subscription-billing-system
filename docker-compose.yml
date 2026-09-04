@@ -1,5 +1,6 @@
 services:
-  # 1. Your Existing PostgreSQL Database
+
+  # 1. PostgreSQL
   postgres-db:
     image: postgres:16-alpine
     container_name: billing_postgres
@@ -7,52 +8,66 @@ services:
       - "5432:5432"
     environment:
       POSTGRES_DB: billing_db
-      POSTGRES_MULTIPLE_DATABASES: "account_db"
       POSTGRES_USER: billing_user
       POSTGRES_PASSWORD: billing_password
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
     healthcheck:
-      test: pg_isready -U billing_user -d billing_db
+      test: ["CMD-SHELL", "pg_isready -U billing_user -d billing_db"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  # 2. Redis Container (Required for your Gateway Rate Limiter!)
+  # 2. Redis
   redis:
     image: redis:7-alpine
     container_name: gateway_redis
     ports:
       - "6379:6379"
 
-  # 3. Your Account Service
+  # 3. Account Service
   account-service:
     build:
-      context: ../account-service/account-service # Points to your account-service project directory
+      context: ../account-service/account-service
     container_name: account-service
     ports:
       - "8081:8081"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/account_db
-      - SPRING_DATASOURCE_USERNAME=billing_user
-      - SPRING_DATASOURCE_PASSWORD=billing_password
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/account_db
+      SPRING_DATASOURCE_USERNAME: billing_user
+      SPRING_DATASOURCE_PASSWORD: billing_password
     depends_on:
       postgres-db:
         condition: service_healthy
 
-  # 4. Your API Gateway
+  # 4. Billing Service
+  billing-service:
+    build:
+      context: .
+    container_name: billing-service
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/billing_db
+      SPRING_DATASOURCE_USERNAME: billing_user
+      SPRING_DATASOURCE_PASSWORD: billing_password
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+
+  # 5. API Gateway
   api-gateway:
     build:
-      context: ../api-gateway/api-gateway # Points to your api-gateway project directory
+      context: ../api-gateway/api-gateway
     container_name: api-gateway
     ports:
       - "8083:8083"
     depends_on:
       - redis
       - account-service
+      - billing-service
 
-# Existing volume declaration
 volumes:
   pgdata:
 

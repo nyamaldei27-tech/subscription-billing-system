@@ -1,7 +1,6 @@
 package com.example.demo.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
@@ -16,20 +15,27 @@ public class Subscription {
     private Long id;
 
     /*
-     * Customer belongs outside the billing domain,
-     * so we store the customer's ID rather than a JPA relationship.
+     * Customer belongs to the account service.
+     * Therefore, we store only the customer ID.
      */
     @NotNull(message = "Customer association is required")
     @Column(name = "customer_id", nullable = false)
     private Long customerId;
 
+    /*
+     * Plan belongs to the billing domain,
+     * so a JPA relationship is appropriate here.
+     */
     @NotNull(message = "Plan association is required")
     @ManyToOne
     @JoinColumn(name = "plan_id", nullable = false)
     private Plan plan;
 
-    @NotBlank(message = "Subscription status is required")
-    @Pattern(regexp = "^(ACTIVE|PAST_DUE)$", message = "Subscription status must be ACTIVE or PAST_DUE")
+    @NotNull(message = "Subscription status is required")
+    @Pattern(
+            regexp = "^(ACTIVE|PAST_DUE|CANCELED)$",
+            message = "Subscription status must be ACTIVE, PAST_DUE or CANCELED"
+    )
     @Column(nullable = false)
     private String status;
 

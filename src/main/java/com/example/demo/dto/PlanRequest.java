@@ -19,7 +19,7 @@ public class PlanRequest {
 
     @NotNull(message = "Price in cents is required")
     @PositiveOrZero(message = "Price cents must be zero or a positive value")
-    private Integer priceCents;
+    private Long priceCents;
 
     public String getName() {
         return name;
@@ -37,11 +37,11 @@ public class PlanRequest {
         this.billingCycle = billingCycle;
     }
 
-    public Integer getPriceCents() {
+    public Long getPriceCents() {
         return priceCents;
     }
 
-    public void setPriceCents(Integer priceCents) {
+    public void setPriceCents(Long priceCents) {
         this.priceCents = priceCents;
     }
 }

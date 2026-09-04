@@ -6,5 +6,10 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface PlanRepository extends JpaRepository<Plan,Long> {
-    boolean existsByName(String name);
+
+    boolean existsByNameIgnoreCase(String name);
+    boolean existsByNameAndIdNot(String name, Long id);
+
+    boolean existsByNameIgnoreCaseAndIdNot(String planName, Long id);
 }
+
