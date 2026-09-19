@@ -1,10 +1,13 @@
 package com.example.demo.controller;
 
 import com.example.demo.dto.*;
+import com.example.demo.entity.SubscriptionActivity;
 import com.example.demo.service.BillingService;
+import com.example.demo.service.ChurnRiskService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -14,23 +17,30 @@ import java.util.List;
 public class BillingController {
 
     private final BillingService billingService;
+    private final ChurnRiskService churnRiskService;
 
-    public BillingController(BillingService billingService) {
+    public BillingController(
+            BillingService billingService,
+            ChurnRiskService churnRiskService) {
+
         this.billingService = billingService;
+        this.churnRiskService = churnRiskService;
     }
 
-    // =========================================================
+    // =========================
     // SUBSCRIPTIONS
-    // =========================================================
+    // =========================
 
     @PostMapping("/subscriptions")
     public ResponseEntity<SubscriptionResponse> createSubscription(
-            @Valid @RequestBody SubscriptionRequest request) {
+            @Valid @RequestBody SubscriptionRequest request,
+            Authentication authentication) {
 
         SubscriptionResponse response =
                 billingService.createSubscription(
                         request.getCustomerId(),
-                        request.getPlanId()
+                        request.getPlanId(),
+                        authentication
                 );
 
         return ResponseEntity
@@ -39,124 +49,176 @@ public class BillingController {
     }
 
     @GetMapping("/subscriptions")
-    public ResponseEntity<List<SubscriptionResponse>>
-    getAllSubscriptions() {
-
+    public ResponseEntity<List<SubscriptionResponse>> getAllSubscriptions() {
         return ResponseEntity.ok(
                 billingService.getAllSubscriptions()
         );
     }
 
     @GetMapping("/subscriptions/{id}")
-    public ResponseEntity<SubscriptionResponse>
-    getSubscriptionById(
-            @PathVariable Long id) {
+    public ResponseEntity<SubscriptionResponse> getSubscriptionById(
+            @PathVariable Long id,
+            Authentication authentication) {
 
         return ResponseEntity.ok(
-                billingService.getSubscriptionById(id)
+                billingService.getSubscriptionById(
+                        id,
+                        authentication
+                )
         );
     }
 
     @GetMapping("/subscriptions/customer/{customerId}")
-    public ResponseEntity<List<SubscriptionResponse>>
-    getSubscriptionsByCustomer(
-            @PathVariable Long customerId) {
+    public ResponseEntity<List<SubscriptionResponse>> getSubscriptionsByCustomer(
+            @PathVariable Long customerId,
+            Authentication authentication) {
 
         return ResponseEntity.ok(
                 billingService.getSubscriptionsByCustomerId(
-                        customerId
+                        customerId,
+                        authentication
                 )
         );
     }
 
     @PutMapping("/subscriptions/{id}/cancel")
-    public ResponseEntity<SubscriptionResponse>
-    cancelSubscription(
-            @PathVariable Long id) {
+    public ResponseEntity<SubscriptionResponse> cancelSubscription(
+            @PathVariable Long id,
+            Authentication authentication) {
 
         return ResponseEntity.ok(
-                billingService.cancelSubscription(id)
+                billingService.cancelSubscription(
+                        id,
+                        authentication
+                )
         );
     }
 
-    // =========================================================
+    @PutMapping("/subscriptions/{id}/plan")
+    public ResponseEntity<SubscriptionResponse> changeSubscriptionPlan(
+            @PathVariable Long id,
+            @Valid @RequestBody ChangePlanRequest request,
+            Authentication authentication) {
+
+        return ResponseEntity.ok(
+                billingService.changeSubscriptionPlan(
+                        id,
+                        request.getPlanId(),
+                        authentication
+                )
+        );
+    }
+
+    // =========================
     // INVOICES
-    // =========================================================
+    // =========================
 
     @GetMapping("/invoices")
-    public ResponseEntity<List<InvoiceResponse>>
-    getAllInvoices() {
-
+    public ResponseEntity<List<InvoiceResponse>> getAllInvoices() {
         return ResponseEntity.ok(
                 billingService.getAllInvoices()
         );
     }
 
     @GetMapping("/invoices/{id}")
-    public ResponseEntity<InvoiceResponse>
-    getInvoiceById(
-            @PathVariable Long id) {
+    public ResponseEntity<InvoiceResponse> getInvoiceById(
+            @PathVariable Long id,
+            Authentication authentication) {
 
         return ResponseEntity.ok(
-                billingService.getInvoiceById(id)
-        );
-    }
-
-    @GetMapping("/invoices/customer/{customerId}")
-    public ResponseEntity<List<InvoiceResponse>>
-    getInvoicesByCustomer(
-            @PathVariable Long customerId) {
-
-        return ResponseEntity.ok(
-                billingService.getInvoicesByCustomerId(
-                        customerId
+                billingService.getInvoiceById(
+                        id,
+                        authentication
                 )
         );
     }
 
-    // =========================================================
+    @GetMapping("/invoices/customer/{customerId}")
+    public ResponseEntity<List<InvoiceResponse>> getInvoicesByCustomer(
+            @PathVariable Long customerId,
+            Authentication authentication) {
+
+        return ResponseEntity.ok(
+                billingService.getInvoicesByCustomerId(
+                        customerId,
+                        authentication
+                )
+        );
+    }
+
+    // =========================
     // PAYMENTS
-    // =========================================================
+    // =========================
 
     @PostMapping("/invoices/{invoiceId}/payment")
     public ResponseEntity<InvoiceResponse> payInvoice(
             @PathVariable Long invoiceId,
-            @Valid @RequestBody PaymentRequest request) {
+            @Valid @RequestBody PaymentRequest request,
+            Authentication authentication) {
 
         InvoiceResponse invoice =
                 billingService.processPayment(
                         invoiceId,
-                        request.getStatus()
+                        request.getStatus(),
+                        authentication
                 );
 
         return ResponseEntity.ok(invoice);
     }
 
-    // =========================================================
+    // =========================
     // PAYMENT ATTEMPTS
-    // =========================================================
+    // =========================
 
     @GetMapping("/payment-attempts")
-    public ResponseEntity<List<PaymentAttemptResponse>>
-    getAllPaymentAttempts() {
-
+    public ResponseEntity<List<PaymentAttemptResponse>> getAllPaymentAttempts() {
         return ResponseEntity.ok(
                 billingService.getAllPaymentAttempts()
         );
     }
 
-    @GetMapping(
-            "/customers/{customerId}/payment-attempts"
-    )
+    @GetMapping("/payment-attempts/customer/{customerId}")
     public ResponseEntity<List<PaymentAttemptResponse>>
     getPaymentAttemptsByCustomerId(
-            @PathVariable Long customerId) {
+            @PathVariable Long customerId,
+            Authentication authentication) {
 
         return ResponseEntity.ok(
-                billingService
-                        .getPaymentAttemptsByCustomerId(
-                                customerId
-                        )
+                billingService.getPaymentAttemptsByCustomerId(
+                        customerId,
+                        authentication
+                )
+        );
+    }
+
+    // =========================
+    // SUBSCRIPTION ACTIVITIES
+    // =========================
+
+    @GetMapping("/subscription-activities/customer/{customerId}")
+    public List<SubscriptionActivity>
+    getSubscriptionActivitiesByCustomerId(
+            @PathVariable Long customerId,
+            Authentication authentication) {
+
+        return billingService.getSubscriptionActivitiesByCustomerId(
+                customerId,
+                authentication
+        );
+    }
+
+    // =========================
+    // CHURN RISK
+    // =========================
+
+    @GetMapping("/churn-risk/customer/{customerId}")
+    public ChurnRiskResponse getChurnRisk(
+            @PathVariable Long customerId,
+            Authentication authentication) {
+
+        return churnRiskService.calculateRisk(
+                customerId,
+                authentication
         );
     }
 }

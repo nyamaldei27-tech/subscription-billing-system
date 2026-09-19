@@ -10,6 +10,7 @@ public class InvoiceResponse {
     private String status;
     private LocalDateTime dueDate;
     private LocalDateTime paidAt;
+    private String receiptUrl;
 
     public Long getId() {
         return id;
@@ -64,4 +65,12 @@ public class InvoiceResponse {
     public LocalDateTime getPaidAt() {
         return paidAt;
     }
+
+    public String getReceiptUrl() {
+        return receiptUrl;
+    }
+    public void setReceiptUrl(String receiptUrl) {
+        this.receiptUrl = receiptUrl;
+    }
+
 }

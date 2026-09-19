@@ -1,25 +1,26 @@
 package com.example.demo.service;
 
 import com.example.demo.client.AccountServiceClient;
+import com.example.demo.dto.CustomerResponse;
 import com.example.demo.dto.SubscriptionResponse;
-import com.example.demo.entity.Invoice;
-import com.example.demo.entity.PaymentAttempt;
-import com.example.demo.entity.Plan;
-import com.example.demo.entity.Subscription;
+import com.example.demo.entity.*;
 import com.example.demo.exception.ResourceNotFoundException;
-import com.example.demo.repository.InvoiceRepository;
-import com.example.demo.repository.PaymentAttemptRepository;
-import com.example.demo.repository.PlanRepository;
-import com.example.demo.repository.SubscriptionRepository;
+import com.example.demo.repository.*;
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.example.demo.dto.InvoiceResponse;
 import com.example.demo.dto.PaymentAttemptResponse;
+import com.example.demo.kafka.BillingEvent;
+import com.example.demo.repository.SubscriptionActivityRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
+import com.example.demo.kafka.BillingEventProducer;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class BillingService {
@@ -29,35 +30,66 @@ public class BillingService {
     private final InvoiceRepository invoiceRepository;
     private final PaymentAttemptRepository paymentAttemptRepository;
     private final AccountServiceClient accountServiceClient;
+    private final BillingEventProducer billingEventProducer;
+    private final SubscriptionActivityRepository subscriptionActivityRepository;
+    private final  ReceiptPdfService receiptPdfService;
+    private final MinioStorageService minioStorageService;
 
     public BillingService(
             PlanRepository planRepository,
             SubscriptionRepository subscriptionRepository,
             InvoiceRepository invoiceRepository,
             PaymentAttemptRepository paymentAttemptRepository,
-            AccountServiceClient accountServiceClient) {
+            AccountServiceClient accountServiceClient,
+            BillingEventProducer billingEventProducer,
+            SubscriptionActivityRepository subscriptionActivityRepository,
+            ReceiptPdfService receiptPdfService,
+            MinioStorageService minioStorageService) {
 
         this.planRepository = planRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.invoiceRepository = invoiceRepository;
         this.paymentAttemptRepository = paymentAttemptRepository;
         this.accountServiceClient = accountServiceClient;
+        this.billingEventProducer = billingEventProducer;
+        this.subscriptionActivityRepository = subscriptionActivityRepository;
+        this.receiptPdfService = receiptPdfService;
+        this.minioStorageService = minioStorageService;
     }
 
     // =========================================================
     // SUBSCRIPTIONS
     // =========================================================
-
     @Transactional
     public SubscriptionResponse createSubscription(
             Long customerId,
-            Long planId) {
+            Long planId,
+            Authentication authentication) {
+
+        verifyCustomerOwnership(customerId, authentication);
 
         // Customer belongs to Account Service.
         // Billing Service does NOT access a CustomerRepository.
-        if (!accountServiceClient.customerExists(customerId)) {
+        if (!accountServiceClient.customerExists(customerId,
+                authentication )) {
             throw new ResourceNotFoundException(
                     "Customer " + customerId + " does not exist."
+            );
+        }
+
+        // A customer can have only one ACTIVE subscription.
+        boolean alreadyActive =
+                subscriptionRepository
+                        .findByCustomerId(customerId)
+                        .stream()
+                        .anyMatch(subscription ->
+                                "ACTIVE".equals(subscription.getStatus())
+                        );
+
+        if (alreadyActive) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Customer already has an active subscription."
             );
         }
 
@@ -102,6 +134,16 @@ public class BillingService {
 
         invoiceRepository.save(invoice);
 
+        BillingEvent event = new BillingEvent(
+                "SUBSCRIPTION_CREATED",
+                savedSubscription.getId(),
+                savedSubscription.getCustomerId(),
+                savedSubscription.getPlan().getId(),
+                LocalDateTime.now()
+        );
+
+        billingEventProducer.sendEvent(event);
+
         return toSubscriptionResponse(savedSubscription);
     }
 
@@ -115,19 +157,27 @@ public class BillingService {
     }
 
     @Transactional(readOnly = true)
-    public SubscriptionResponse getSubscriptionById(Long id) {
+    public SubscriptionResponse getSubscriptionById(Long id,
+                                                    Authentication authentication) {
 
         Subscription subscription =
                 subscriptionRepository.findById(id)
                         .orElseThrow(() -> new ResourceNotFoundException(
                                 "Subscription " + id + " does not exist."
                         ));
+        verifyCustomerOwnership(
+                subscription.getCustomerId(),
+                authentication
+        );
 
         return toSubscriptionResponse(subscription);
     }
     @Transactional(readOnly = true)
     public List<SubscriptionResponse> getSubscriptionsByCustomerId(
-            Long customerId) {
+            Long customerId,
+            Authentication authentication) {
+
+        verifyCustomerOwnership(customerId, authentication);
 
         return subscriptionRepository
                 .findByCustomerId(customerId)
@@ -137,13 +187,18 @@ public class BillingService {
     }
 
     @Transactional
-    public SubscriptionResponse cancelSubscription(Long id) {
+    public SubscriptionResponse cancelSubscription(Long id,
+                                                   Authentication authentication) {
 
         Subscription subscription =
                 subscriptionRepository.findById(id)
                         .orElseThrow(() -> new ResourceNotFoundException(
                                 "Subscription " + id + " does not exist."
                         ));
+        verifyCustomerOwnership(
+                subscription.getCustomerId(),
+                authentication
+        );
 
         if ("CANCELED".equalsIgnoreCase(subscription.getStatus())) {
             throw new IllegalStateException(
@@ -156,30 +211,126 @@ public class BillingService {
         Subscription savedSubscription =
                 subscriptionRepository.save(subscription);
 
+        BillingEvent event = new BillingEvent(
+                "SUBSCRIPTION_CANCELED",
+                subscription.getId(),
+                subscription.getCustomerId(),
+                subscription.getPlan().getId(),
+                LocalDateTime.now()
+        );
+
+        billingEventProducer.sendEvent(event);
+
         return toSubscriptionResponse(savedSubscription);
+    }
+
+    @Transactional
+    public SubscriptionResponse changeSubscriptionPlan(
+            Long subscriptionId,
+            Long planId,
+            Authentication authentication) {
+
+        Subscription subscription =
+                subscriptionRepository.findById(subscriptionId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Subscription "
+                                                + subscriptionId
+                                                + " does not exist."
+                                ));
+        verifyCustomerOwnership(
+                subscription.getCustomerId(),
+                authentication
+        );
+
+        if ("CANCELED".equalsIgnoreCase(
+                subscription.getStatus())) {
+
+            throw new IllegalStateException(
+                    "Cannot change the plan of a canceled subscription."
+            );
+        }
+
+        Plan newPlan =
+                planRepository.findById(planId)
+                        .orElseThrow(() ->
+                                new ResourceNotFoundException(
+                                        "Plan "
+                                                + planId
+                                                + " does not exist."
+                                ));
+
+        subscription.setPlan(newPlan);
+
+        LocalDateTime now = LocalDateTime.now();
+
+        String billingCycle =
+                newPlan.getBillingCycle()
+                        .toUpperCase(Locale.ROOT);
+
+        LocalDateTime periodEnd = switch (billingCycle) {
+            case "WEEKLY" ->
+                    now.plusWeeks(1);
+
+            case "MONTHLY" ->
+                    now.plusMonths(1);
+
+            case "YEARLY" ->
+                    now.plusYears(1);
+
+            default ->
+                    throw new IllegalStateException(
+                            "Unsupported billing cycle: "
+                                    + billingCycle
+                    );
+        };
+
+        subscription.setCurrentPeriodEnd(periodEnd);
+
+        Subscription savedSubscription =
+                subscriptionRepository.save(subscription);
+
+        BillingEvent event = new BillingEvent(
+                "SUBSCRIPTION_PLAN_CHANGED",
+                savedSubscription.getId(),
+                savedSubscription.getCustomerId(),
+                savedSubscription.getPlan().getId(),
+                LocalDateTime.now()
+        );
+
+        billingEventProducer.sendEvent(event);
+
+        return toSubscriptionResponse(
+                savedSubscription
+        );
     }
 
     // =========================================================
     // PAYMENTS
     // =========================================================
-
     @Transactional
     public InvoiceResponse processPayment(
             Long invoiceId,
-            String paymentStatus) {
+            String paymentStatus,
+            Authentication authentication) {
 
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Invoice " + invoiceId + " does not exist."
                 ));
 
+        Subscription subscription = invoice.getSubscription();
+
+        verifyCustomerOwnership(
+                subscription.getCustomerId(),
+                authentication
+        );
+
         PaymentAttempt attempt = new PaymentAttempt();
         attempt.setInvoice(invoice);
         attempt.setStatus(paymentStatus);
 
         paymentAttemptRepository.save(attempt);
-
-        Subscription subscription = invoice.getSubscription();
 
         if ("SUCCESS".equalsIgnoreCase(paymentStatus)) {
 
@@ -200,9 +351,60 @@ public class BillingService {
 
         Invoice savedInvoice = invoiceRepository.save(invoice);
 
-        return toInvoiceResponse(savedInvoice);
-    }
+        if ("SUCCESS".equalsIgnoreCase(paymentStatus)) {
 
+            byte[] receiptPdf =
+                    receiptPdfService.generateReceipt(savedInvoice);
+
+            String objectName =
+                    "receipts/invoice-"
+                            + savedInvoice.getId()
+                            + ".pdf";
+
+            minioStorageService.upload(
+                    objectName,
+                    receiptPdf,
+                    "application/pdf"
+            );
+            savedInvoice.setReceiptObjectName(objectName);
+
+            invoiceRepository.save(savedInvoice);
+
+            String receiptUrl =
+                    minioStorageService.getPresignedUrl(objectName);
+
+            BillingEvent event = new BillingEvent(
+                    "PAYMENT_SUCCEEDED",
+                    subscription.getId(),
+                    subscription.getCustomerId(),
+                    subscription.getPlan().getId(),
+                    LocalDateTime.now()
+            );
+
+            billingEventProducer.sendEvent(event);
+
+            InvoiceResponse response =
+                    toInvoiceResponse(savedInvoice);
+
+            response.setReceiptUrl(receiptUrl);
+
+            return response;
+
+        } else {
+
+            BillingEvent event = new BillingEvent(
+                    "PAYMENT_FAILED",
+                    subscription.getId(),
+                    subscription.getCustomerId(),
+                    subscription.getPlan().getId(),
+                    LocalDateTime.now()
+            );
+
+            billingEventProducer.sendEvent(event);
+
+            return toInvoiceResponse(savedInvoice);
+        }
+    }
 
     // =========================================================
     // INVOICES
@@ -218,18 +420,25 @@ public class BillingService {
     }
 
     @Transactional(readOnly = true)
-    public InvoiceResponse getInvoiceById(Long id) {
+    public InvoiceResponse getInvoiceById(Long id,
+                                          Authentication authentication) {
 
         Invoice invoice = invoiceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Invoice " + id + " does not exist."
                 ));
+        verifyCustomerOwnership(
+                invoice.getSubscription().getCustomerId(),
+                authentication
+        );
 
         return toInvoiceResponse(invoice);
     }
 
     @Transactional(readOnly = true)
-    public List<InvoiceResponse> getInvoicesByCustomerId(Long customerId) {
+    public List<InvoiceResponse> getInvoicesByCustomerId(Long customerId,
+                                                         Authentication authentication) {
+        verifyCustomerOwnership(customerId, authentication);
 
         return invoiceRepository
                 .findBySubscriptionCustomerId(customerId)
@@ -253,13 +462,22 @@ public class BillingService {
 
     @Transactional(readOnly = true)
     public List<PaymentAttemptResponse> getPaymentAttemptsByCustomerId(
-            Long customerId) {
+            Long customerId,
+            Authentication authentication) {
+
+        verifyCustomerOwnership(customerId, authentication);
 
         return paymentAttemptRepository
-                .findByInvoiceSubscriptionCustomerId(customerId)
+                .findByCustomerId(customerId)
                 .stream()
                 .map(this::toPaymentAttemptResponse)
                 .toList();
+    }
+
+    public List<SubscriptionActivity> getSubscriptionActivitiesByCustomerId(Long customerId, Authentication authentication) {
+        verifyCustomerOwnership(customerId, authentication);
+        return subscriptionActivityRepository
+                .findByCustomerIdOrderByEventTimestampDesc(customerId);
     }
 
     // =========================================================
@@ -369,6 +587,14 @@ public class BillingService {
             response.setSubscriptionId(subscription.getId());
             response.setCustomerId(subscription.getCustomerId());
         }
+        if (invoice.getReceiptObjectName() != null) {
+            String receiptUrl =
+                    minioStorageService.getPresignedUrl(
+                            invoice.getReceiptObjectName()
+                    );
+
+            response.setReceiptUrl(receiptUrl);
+        }
 
         return response;
     }
@@ -390,5 +616,19 @@ public class BillingService {
         }
 
         return response;
+    }
+
+    private void verifyCustomerOwnership(
+            Long customerId,
+            Authentication authentication) {
+
+        CustomerResponse currentCustomer =
+                accountServiceClient.getCurrentCustomer(authentication);
+
+        if (!currentCustomer.getId().equals(customerId)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "You are not allowed to access this customer's data."
+            );
+        }
     }
 }

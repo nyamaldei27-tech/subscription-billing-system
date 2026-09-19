@@ -38,6 +38,9 @@ public class Invoice {
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
 
+    @Column(name = "receipt_object_name")
+    private String receiptObjectName;
+
     public Long getId() {
         return id;
     }
@@ -84,5 +87,13 @@ public class Invoice {
 
     public void setPaidAt(LocalDateTime paidAt) {
         this.paidAt = paidAt;
+    }
+
+    public String getReceiptObjectName() {
+        return receiptObjectName;
+    }
+
+    public void setReceiptObjectName(String receiptObjectName) {
+        this.receiptObjectName = receiptObjectName;
     }
 }
